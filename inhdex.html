@@ -56,6 +56,9 @@
         .indent {
             margin-left: 20px;
         }
+        .error {
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -66,91 +69,97 @@
     <div id="jsonOutput"></div>
 
     <script>
-        document.getElementById('jsonInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const jsonData = JSON.parse(e.target.result);
-                        displayJSON(jsonData, document.getElementById('jsonOutput'));
-                    } catch (error) {
-                        document.getElementById('jsonOutput').innerHTML = '<p style="color: red;">Error parsing JSON: ' + error.message + '</p>';
-                    }
-                };
-                reader.readAsText(file);
+        document.addEventListener('DOMContentLoaded', () => {
+            const jsonInput = document.getElementById('jsonInput');
+            const jsonOutput = document.getElementById('jsonOutput');
+
+            jsonInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const jsonData = JSON.parse(e.target.result);
+                            jsonOutput.innerHTML = ''; // Clear previous content
+                            displayJSON(jsonData, jsonOutput);
+                        } catch (error) {
+                            jsonOutput.innerHTML = `<p class="error">Error parsing JSON: ${error.message}</p>`;
+                            console.error('JSON Parse Error:', error);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            function displayJSON(data, container, level = 0) {
+                if (typeof data === 'object' && data !== null) {
+                    const isArray = Array.isArray(data);
+                    const entries = isArray ? data : Object.entries(data);
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'indent';
+                    wrapper.innerHTML = isArray ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
+                    const content = document.createElement('div');
+                    content.className = 'indent hidden';
+
+                    entries.forEach((entry, index) => {
+                        const item = document.createElement('div');
+                        const key = isArray ? index : entry[0];
+                        const value = isArray ? entry : entry[1];
+
+                        if (!isArray) {
+                            const keySpan = document.createElement('span');
+                            keySpan.className = 'json-key';
+                            keySpan.textContent = `"${key}": `;
+                            item.appendChild(keySpan);
+                        }
+
+                        if (typeof value === 'object' && value !== null) {
+                            const subWrapper = document.createElement('div');
+                            subWrapper.innerHTML = Array.isArray(value) ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
+                            const subContent = document.createElement('div');
+                            subContent.className = 'indent hidden';
+                            displayJSON(value, subContent, level + 1);
+                            subWrapper.appendChild(subContent);
+                            item.appendChild(subWrapper);
+                        } else {
+                            const valueSpan = document.createElement('span');
+                            valueSpan.className = getValueClass(value);
+                            valueSpan.textContent = formatValue(value);
+                            item.appendChild(valueSpan);
+                        }
+
+                        content.appendChild(item);
+                    });
+
+                    wrapper.appendChild(content);
+                    container.appendChild(wrapper);
+
+                    wrapper.querySelector('.collapsible').addEventListener('click', function() {
+                        content.classList.toggle('hidden');
+                        this.textContent = content.classList.contains('hidden') ? '...' : 'collapse';
+                    });
+                } else {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = getValueClass(data);
+                    valueSpan.textContent = formatValue(data);
+                    container.appendChild(valueSpan);
+                }
+            }
+
+            function getValueClass(value) {
+                if (value === null) return 'json-null';
+                if (typeof value === 'string') return 'json-string';
+                if (typeof value === 'number') return 'json-number';
+                if (typeof value === 'boolean') return 'json-boolean';
+                return 'json-value';
+            }
+
+            function formatValue(value) {
+                if (value === null) return 'null';
+                if (typeof value === 'string') return `"${value}"`;
+                return value.toString();
             }
         });
-
-        function displayJSON(data, container, level = 0) {
-            container.innerHTML = '';
-            if (typeof data === 'object' && data !== null) {
-                const isArray = Array.isArray(data);
-                const entries = isArray ? data : Object.entries(data);
-                const wrapper = document.createElement('div');
-                wrapper.className = 'indent';
-                wrapper.innerHTML = isArray ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
-                const content = document.createElement('div');
-                content.className = 'indent hidden';
-
-                entries.forEach((entry, index) => {
-                    const item = document.createElement('div');
-                    const key = isArray ? index : entry[0];
-                    const value = isArray ? entry : entry[1];
-
-                    if (!isArray) {
-                        const keySpan = document.createElement('span');
-                        keySpan.className = 'json-key';
-                        keySpan.textContent = `"${key}": `;
-                        item.appendChild(keySpan);
-                    }
-
-                    if (typeof value === 'object' && value !== null) {
-                        const subWrapper = document.createElement('div');
-                        subWrapper.innerHTML = Array.isArray(value) ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
-                        const subContent = document.createElement('div');
-                        subContent.className = 'indent hidden';
-                        displayJSON(value, subContent, level + 1);
-                        subWrapper.appendChild(subContent);
-                        item.appendChild(subWrapper);
-                    } else {
-                        const valueSpan = document.createElement('span');
-                        valueSpan.className = getValueClass(value);
-                        valueSpan.textContent = formatValue(value);
-                        item.appendChild(valueSpan);
-                    }
-
-                    content.appendChild(item);
-                });
-
-                wrapper.appendChild(content);
-                container.appendChild(wrapper);
-
-                wrapper.querySelector('.collapsible').addEventListener('click', function() {
-                    content.classList.toggle('hidden');
-                    this.textContent = content.classList.contains('hidden') ? '...' : 'collapse';
-                });
-            } else {
-                const valueSpan = document.createElement('span');
-                valueSpan.className = getValueClass(data);
-                valueSpan.textContent = formatValue(data);
-                container.appendChild(valueSpan);
-            }
-        }
-
-        function getValueClass(value) {
-            if (value === null) return 'json-null';
-            if (typeof value === 'string') return 'json-string';
-            if (typeof value === 'number') return 'json-number';
-            if (typeof value === 'boolean') return 'json-boolean';
-            return 'json-value';
-        }
-
-        function formatValue(value) {
-            if (value === null) return 'null';
-            if (typeof value === 'string') return `"${value}"`;
-            return value.toString();
-        }
     </script>
 </body>
 </html>
