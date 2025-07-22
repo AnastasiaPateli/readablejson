@@ -1,73 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>JSON Viewer</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2em;
-      background: #f9f9f9;
-    }
-    h1 {
-      color: #333;
-    }
-    #output {
-      white-space: pre-wrap;
-      background: #fff;
-      border: 1px solid #ddd;
-      padding: 1em;
-      margin-top: 1em;
-      border-radius: 8px;
-    }
-    .file-input {
-      margin-bottom: 1em;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        #jsonInput {
+            margin-bottom: 20px;
+        }
+        #jsonOutput {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 800px;
+        }
+        .json-key {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        .json-value {
+            color: #d81b60;
+        }
+        .json-string {
+            color: #0288d1;
+        }
+        .json-number {
+            color: #7b1fa2;
+        }
+        .json-boolean {
+            color: #f57c00;
+        }
+        .json-null {
+            color: #455a64;
+        }
+        .collapsible {
+            cursor: pointer;
+            color: #1976d2;
+            text-decoration: underline;
+        }
+        .collapsible:hover {
+            color: #0d47a1;
+        }
+        .hidden {
+            display: none;
+        }
+        .indent {
+            margin-left: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>📂 JSON File Viewer</h1>
-  <input type="file" id="jsonFile" class="file-input" accept=".json">
-  <div id="output">Upload a JSON file to see its structured content.</div>
+    <h1>JSON Viewer</h1>
+    <div>
+        <input type="file" id="jsonInput" accept=".json">
+    </div>
+    <div id="jsonOutput"></div>
 
-  <script>
-    document.getElementById('jsonFile').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        try {
-          const json = JSON.parse(event.target.result);
-          const formatted = formatJSON(json);
-          document.getElementById('output').innerText = formatted;
-        } catch (err) {
-          document.getElementById('output').innerText = 'Invalid JSON file.';
-        }
-      };
-      reader.readAsText(file);
-    });
-
-    function formatJSON(data, indent = 0) {
-      let result = '';
-      const pad = '  '.repeat(indent);
-
-      if (Array.isArray(data)) {
-        data.forEach((item, index) => {
-          result += `${pad}- Item ${index + 1}:\n`;
-          result += formatJSON(item, indent + 1);
+    <script>
+        document.getElementById('jsonInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        displayJSON(jsonData, document.getElementById('jsonOutput'));
+                    } catch (error) {
+                        document.getElementById('jsonOutput').innerHTML = '<p style="color: red;">Error parsing JSON: ' + error.message + '</p>';
+                    }
+                };
+                reader.readAsText(file);
+            }
         });
-      } else if (typeof data === 'object' && data !== null) {
-        for (const key in data) {
-          result += `${pad}- ${key}:\n`;
-          result += formatJSON(data[key], indent + 1);
-        }
-      } else {
-        result += `${pad}${data}\n`;
-      }
 
-      return result;
-    }
-  </script>
+        function displayJSON(data, container, level = 0) {
+            container.innerHTML = '';
+            if (typeof data === 'object' && data !== null) {
+                const isArray = Array.isArray(data);
+                const entries = isArray ? data : Object.entries(data);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'indent';
+                wrapper.innerHTML = isArray ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
+                const content = document.createElement('div');
+                content.className = 'indent hidden';
+
+                entries.forEach((entry, index) => {
+                    const item = document.createElement('div');
+                    const key = isArray ? index : entry[0];
+                    const value = isArray ? entry : entry[1];
+
+                    if (!isArray) {
+                        const keySpan = document.createElement('span');
+                        keySpan.className = 'json-key';
+                        keySpan.textContent = `"${key}": `;
+                        item.appendChild(keySpan);
+                    }
+
+                    if (typeof value === 'object' && value !== null) {
+                        const subWrapper = document.createElement('div');
+                        subWrapper.innerHTML = Array.isArray(value) ? '[<span class="collapsible">...</span>]' : '{<span class="collapsible">...</span>}';
+                        const subContent = document.createElement('div');
+                        subContent.className = 'indent hidden';
+                        displayJSON(value, subContent, level + 1);
+                        subWrapper.appendChild(subContent);
+                        item.appendChild(subWrapper);
+                    } else {
+                        const valueSpan = document.createElement('span');
+                        valueSpan.className = getValueClass(value);
+                        valueSpan.textContent = formatValue(value);
+                        item.appendChild(valueSpan);
+                    }
+
+                    content.appendChild(item);
+                });
+
+                wrapper.appendChild(content);
+                container.appendChild(wrapper);
+
+                wrapper.querySelector('.collapsible').addEventListener('click', function() {
+                    content.classList.toggle('hidden');
+                    this.textContent = content.classList.contains('hidden') ? '...' : 'collapse';
+                });
+            } else {
+                const valueSpan = document.createElement('span');
+                valueSpan.className = getValueClass(data);
+                valueSpan.textContent = formatValue(data);
+                container.appendChild(valueSpan);
+            }
+        }
+
+        function getValueClass(value) {
+            if (value === null) return 'json-null';
+            if (typeof value === 'string') return 'json-string';
+            if (typeof value === 'number') return 'json-number';
+            if (typeof value === 'boolean') return 'json-boolean';
+            return 'json-value';
+        }
+
+        function formatValue(value) {
+            if (value === null) return 'null';
+            if (typeof value === 'string') return `"${value}"`;
+            return value.toString();
+        }
+    </script>
 </body>
 </html>
