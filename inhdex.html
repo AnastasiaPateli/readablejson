@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JSON Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    #output {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 1em;
+      margin-top: 1em;
+      border-radius: 8px;
+    }
+    .file-input {
+      margin-bottom: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>📂 JSON File Viewer</h1>
+  <input type="file" id="jsonFile" class="file-input" accept=".json">
+  <div id="output">Upload a JSON file to see its structured content.</div>
+
+  <script>
+    document.getElementById('jsonFile').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const json = JSON.parse(event.target.result);
+          const formatted = formatJSON(json);
+          document.getElementById('output').innerText = formatted;
+        } catch (err) {
+          document.getElementById('output').innerText = 'Invalid JSON file.';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function formatJSON(data, indent = 0) {
+      let result = '';
+      const pad = '  '.repeat(indent);
+
+      if (Array.isArray(data)) {
+        data.forEach((item, index) => {
+          result += `${pad}- Item ${index + 1}:\n`;
+          result += formatJSON(item, indent + 1);
+        });
+      } else if (typeof data === 'object' && data !== null) {
+        for (const key in data) {
+          result += `${pad}- ${key}:\n`;
+          result += formatJSON(data[key], indent + 1);
+        }
+      } else {
+        result += `${pad}${data}\n`;
+      }
+
+      return result;
+    }
+  </script>
+</body>
+</html>
